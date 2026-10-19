@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Апскейл</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f0e8;
+      --paper: #fffdf8;
+      --ink: #1d1a16;
+      --muted: #5e584f;
+      --line: #e2d9cc;
+      --accent: #0f6e56;
+      --accent-ink: #ffffff;
+      --warn-bg: #fff4d8;
+      --warn-ink: #6a4b05;
+      --bad: #8d2f22;
+      --ok: #0f6e56;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.45 "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 64px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+
+    header p, .hint, .banner, footer {
+      color: var(--muted);
+    }
+
+    header p { margin: 0 0 28px; }
+
+    .banner {
+      margin: 0 0 20px;
+      padding: 12px 14px;
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      border-radius: 10px;
+    }
+
+    section {
+      margin: 0 0 18px;
+      padding: 16px 16px 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    label, .choice-title {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 650;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: inherit;
+      font: inherit;
+    }
+
+    button, .choice {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button { padding: 10px 14px; white-space: nowrap; }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 650;
+    }
+
+    button:disabled { opacity: 0.55; cursor: default; }
+
+    .hint { margin: 8px 0 0; font-size: 14px; }
+
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .choice {
+      padding: 8px 12px;
+    }
+
+    .choice input { margin-right: 6px; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; }
+
+    .check input { margin-top: 4px; }
+
+    details { margin-top: 8px; }
+
+    summary { cursor: pointer; font-weight: 650; }
+
+    .actions { display: flex; gap: 8px; align-items: center; }
+
+    .bar {
+      height: 8px;
+      margin: 12px 0;
+      background: #efe8dc;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+    }
+
+    #log {
+      margin: 0;
+      max-height: 220px;
+      overflow: auto;
+      font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .status-line { margin: 0; font-weight: 650; }
+
+    .status-line.error { color: var(--bad); }
+
+    .status-line.done { color: var(--ok); }
+
+    footer { margin-top: 18px; font-size: 13px; }
+
+    @media (max-width: 640px) {
+      .split, .row { grid-template-columns: 1fr; display: grid; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Апскейл</h1>
+      <p>Укажите папку с исходниками и папку для результата. PNG сохраняет прозрачность. JPEG и видео тоже увеличиваются.</p>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <section>
+      <label for="input-dir">Исходники</label>
+      <div class="row">
+        <input id="input-dir" type="text" placeholder="/Users/you/media" spellcheck="false" autocomplete="off">
+        <button type="button" id="pick-input">Выбрать</button>
+      </div>
+      <p class="hint" id="input-hint">PNG, JPEG и видео (mp4, mov, mkv, webm, avi). Скрытые файлы пропускаются.</p>
+      <p class="hint" id="ffmpeg-hint"></p>
+    </section>
+
+    <section>
+      <label for="output-dir">Результат</label>
+      <div class="row">
+        <input id="output-dir" type="text" placeholder="/Users/you/media_x4" spellcheck="false" autocomplete="off">
+        <button type="button" id="pick-output">Выбрать</button>
+      </div>
+      <p class="hint">Имена файлов сохраняются. Папка не должна лежать внутри исходников.</p>
+    </section>
+
+    <section>
+      <label for="model">Модель</label>
+      <select id="model"></select>
+      <p class="hint" id="model-hint"></p>
+      <p class="hint" id="weights-hint"></p>
+    </section>
+
+    <section>
+      <div class="choice-title">Масштаб</div>
+      <div class="choices" id="scales"></div>
+      <p class="hint" id="scale-hint"></p>
+    </section>
+
+    <section>
+      <div class="choice-title">Прозрачность</div>
+      <div class="choices">
+        <label class="choice"><input type="radio" name="alpha" value="realesrgan" checked> Моделью</label>
+        <label class="choice"><input type="radio" name="alpha" value="bicubic"> Растянуть</label>
+      </div>
+      <p class="hint" id="alpha-hint"></p>
+      <p class="hint">Для JPEG и видео альфа-канала нет: настройка действует только на PNG.</p>
+    </section>
+
+    <section class="split">
+      <div>
+        <label for="tile">Тайл</label>
+        <select id="tile">
+          <option value="0">0 — картинка целиком</option>
+          <option value="512">512</option>
+          <option value="256">256</option>
+          <option value="128">128</option>
+        </select>
+        <p class="hint">Если не хватает памяти, поставьте 256 или 128. 0 быстрее и без швов между кусками.</p>
+      </div>
+      <div>
+        <div class="choice-title">Папки</div>
+        <label class="check"><input id="recursive" type="checkbox"> Включая подпапки</label>
+        <p class="hint">Структура папок в результате повторяется.</p>
+      </div>
+    </section>
+
+    <section id="denoise-block" hidden>
+      <label for="denoise">Шумоподавление <span id="denoise-val">0.50</span></label>
+      <input id="denoise" type="range" min="0" max="1" step="0.05" value="0.5">
+      <p class="hint">Только у General v3. 0 оставляет шум, 1 сильнее сглаживает.</p>
+    </section>
+
+    <section>
+      <details>
+        <summary>Дополнительно</summary>
+        <div style="height: 12px"></div>
+        <label for="device">Устройство</label>
+        <select id="device">
+          <option value="auto">Авто</option>
+          <option value="cpu">CPU</option>
+          <option value="mps">Apple MPS</option>
+          <option value="cuda">NVIDIA CUDA</option>
+        </select>
+        <p class="hint" id="device-hint"></p>
+        <label class="check" style="margin-top: 12px">
+          <input id="half" type="checkbox">
+          Половинная точность fp16
+        </label>
+        <p class="hint">Имеет смысл только на NVIDIA. На Mac остаётся обычная точность fp32.</p>
+      </details>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="primary" id="start">Обработать</button>
+      <button type="button" id="stop" hidden>Остановить</button>
+      <button type="button" id="open-out" hidden>Открыть папку</button>
+    </div>
+
+    <section>
+      <p class="status-line" id="status">Ожидание</p>
+      <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+      <pre id="log"></pre>
+    </section>
+
+    <footer>Страница локальная: файлы остаются на этом компьютере. Первая модель один раз скачивается в weights/.</footer>
+  </main>
+
+  <script>
+    const inputDir = document.querySelector("#input-dir");
+    const outputDir = document.querySelector("#output-dir");
+    const modelSelect = document.querySelector("#model");
+    const denoise = document.querySelector("#denoise");
+    const startBtn = document.querySelector("#start");
+    const stopBtn = document.querySelector("#stop");
+    const openBtn = document.querySelector("#open-out");
+    const statusLine = document.querySelector("#status");
+    const logEl = document.querySelector("#log");
+    const bar = document.querySelector("#bar");
+
+    let models = [];
+    let weights = {};
+    let outputAuto = true;
+    let pollTimer = null;
+    let scanTimer = null;
+
+    const alphaHints = {
+      realesrgan: "У PNG альфа проходит через ту же модель. Края прозрачности обычно чётче, обработка дольше.",
+      bicubic: "Альфа просто растягивается. Быстрее, края чуть мягче."
+    };
+
+    function selectedModel() {
+      return models.find((item) => item.id === modelSelect.value) || null;
+    }
+
+    function selectedScale() {
+      const node = document.querySelector("input[name=scale]:checked");
+      return node ? Number(node.value) : 4;
+    }
+
+    function suggestOutput() {
+      if (!outputAuto) return;
+      const raw = inputDir.value.trim().replace(/\/+$/, "");
+      if (!raw) return;
+      outputDir.value = raw + "_x" + selectedScale();
+    }
+
+    function renderModel() {
+      const model = selectedModel();
+      document.querySelector("#model-hint").textContent = model ? model.blurb : "";
+      const denoiseBlock = document.querySelector("#denoise-block");
+      denoiseBlock.hidden = !(model && model.denoise);
+      const hasWeights = model && weights[model.id];
+      document.querySelector("#weights-hint").textContent = model
+        ? (hasWeights ? "Веса уже лежат в weights/." : "При первом запуске веса скачаются в weights/.")
+        : "";
+      const scale = selectedScale();
+      const scaleHint = document.querySelector("#scale-hint");
+      if (!model) {
+        scaleHint.textContent = "";
+      } else if (model.netscale === scale) {
+        scaleHint.textContent = "Совпадает с сетью: без дополнительного ресайза.";
+      } else {
+        scaleHint.textContent = "Сеть сделает ×" + model.netscale + ", затем размер подгонится до ×" + scale + " через Lanczos.";
+      }
+    }
+
+    function renderAlpha() {
+      const node = document.querySelector("input[name=alpha]:checked");
+      document.querySelector("#alpha-hint").textContent = alphaHints[node.value];
+    }
+
+    async function refreshScan() {
+      const hint = document.querySelector("#input-hint");
+      const raw = inputDir.value.trim();
+      if (!raw) {
+        hint.textContent = "PNG, JPEG и видео (mp4, mov, mkv, webm, avi). Скрытые файлы пропускаются.";
+        startBtn.textContent = "Обработать";
+        return;
+      }
+      const response = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input_dir: raw, recursive: document.querySelector("#recursive").checked })
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        hint.textContent = data.error;
+        startBtn.textContent = "Обработать";
+        return;
+      }
+      hint.textContent = data.summary || "В папке нет PNG, JPEG или видео.";
+      startBtn.textContent = data.label || "Обработать";
+    }
+
+    function scheduleScan() {
+      clearTimeout(scanTimer);
+      scanTimer = setTimeout(refreshScan, 250);
+    }
+
+    async function pick(which) {
+      const button = document.querySelector(which === "output" ? "#pick-output" : "#pick-input");
+      button.disabled = true;
+      button.textContent = "Окно выбора…";
+      try {
+        const response = await fetch("/api/pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ which })
+        });
+        const data = await response.json();
+        if (!data.ok) {
+          statusLine.textContent = data.error;
+          statusLine.className = "status-line error";
+          return;
+        }
+        if (data.cancelled || !data.path) return;
+        if (which === "output") {
+          outputAuto = false;
+          outputDir.value = data.path;
+        } else {
+          inputDir.value = data.path;
+          suggestOutput();
+          refreshScan();
+        }
+      } finally {
+        button.disabled = false;
+        button.textContent = "Выбрать";
+      }
+    }
+
+    function renderStatus(state) {
+      statusLine.textContent = state.message || "Ожидание";
+      statusLine.className = "status-line" + (state.phase === "error" ? " error" : state.phase === "done" ? " done" : "");
+      const total = state.total || 0;
+      let done = state.done || 0;
+      if (state.running && state.frames) done += Math.min(state.frame, state.frames) / state.frames;
+      const width = total ? Math.round((done / total) * 100) : (state.running ? 8 : 0);
+      bar.style.width = width + "%";
+      logEl.textContent = (state.lines || []).join("\n");
+      logEl.scrollTop = logEl.scrollHeight;
+      const busy = !!state.running;
+      startBtn.disabled = busy;
+      stopBtn.hidden = !busy;
+      openBtn.hidden = busy || state.phase !== "done" || !state.output_dir;
+      openBtn.dataset.path = state.output_dir || "";
+    }
+
+    async function poll() {
+      const state = await (await fetch("/api/status")).json();
+      renderStatus(state);
+      if (state.running) pollTimer = setTimeout(poll, 400);
+    }
+
+    async function startJob() {
+      suggestOutput();
+      startBtn.disabled = true;
+      const payload = {
+        input_dir: inputDir.value.trim(),
+        output_dir: outputDir.value.trim(),
+        model: modelSelect.value,
+        scale: selectedScale(),
+        alpha: document.querySelector("input[name=alpha]:checked").value,
+        tile: Number(document.querySelector("#tile").value),
+        denoise: Number(denoise.value),
+        recursive: document.querySelector("#recursive").checked,
+        device: document.querySelector("#device").value,
+        half: document.querySelector("#half").checked
+      };
+      const response = await fetch("/api/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        statusLine.textContent = data.error;
+        statusLine.className = "status-line error";
+        startBtn.disabled = false;
+        return;
+      }
+      clearTimeout(pollTimer);
+      poll();
+    }
+
+    document.querySelector("#pick-input").addEventListener("click", () => pick("input"));
+    document.querySelector("#pick-output").addEventListener("click", () => pick("output"));
+    inputDir.addEventListener("input", () => { suggestOutput(); scheduleScan(); });
+    outputDir.addEventListener("input", () => { outputAuto = outputDir.value.trim() === ""; if (outputAuto) suggestOutput(); });
+    modelSelect.addEventListener("change", renderModel);
+    document.querySelector("#recursive").addEventListener("change", refreshScan);
+    denoise.addEventListener("input", () => {
+      document.querySelector("#denoise-val").textContent = Number(denoise.value).toFixed(2);
+    });
+    startBtn.addEventListener("click", startJob);
+    stopBtn.addEventListener("click", () => fetch("/api/stop", { method: "POST" }));
+    openBtn.addEventListener("click", () => fetch("/api/reveal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: openBtn.dataset.path })
+    }));
+
+    fetch("/api/meta").then((response) => response.json()).then((meta) => {
+      models = meta.models;
+      weights = meta.weights || {};
+      modelSelect.innerHTML = models.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+      document.querySelector("#scales").innerHTML = meta.scales.map((scale) => (
+        `<label class="choice"><input type="radio" name="scale" value="${scale}" ${scale === 4 ? "checked" : ""}> ×${scale}</label>`
+      )).join("");
+      document.querySelectorAll("input[name=scale]").forEach((node) => {
+        node.addEventListener("change", () => { suggestOutput(); renderModel(); });
+      });
+      document.querySelectorAll("input[name=alpha]").forEach((node) => node.addEventListener("change", renderAlpha));
+      document.querySelector("#device-hint").textContent = "Сейчас доступно: " + meta.device_label + ".";
+      document.querySelector("#ffmpeg-hint").textContent = meta.ffmpeg
+        ? "Видео сохранится в MP4, звуковая дорожка копируется."
+        : "Видео пока недоступно: не найден ffmpeg. На Mac: brew install ffmpeg.";
+      if (!meta.deps && meta.deps_message) {
+        const banner = document.querySelector("#banner");
+        banner.hidden = false;
+        banner.textContent = meta.deps_message;
+      }
+      renderModel();
+      renderAlpha();
+    });
+
+    poll();
+  </script>
+</body>
+</html>
